@@ -1,5 +1,5 @@
 # mc-scoreboardHelper
-A Minecraft [mana9er](https://github.com/mana9er/mana9er-core) plugin for granting in-game *sidebar scoreboard* access to players.
+A Minecraft [mana9er](https://github.com/mana9er/mana9er-core) plugin for enabling in-game sidebar scoreboard cycling.
 
 ## Functionalities
 
