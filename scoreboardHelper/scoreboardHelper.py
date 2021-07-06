@@ -69,12 +69,15 @@ class ScoreboardHelper(QtCore.QObject):
 "!sb view <name>": view a certain scoreboard for a period of time.
 -------------------------------------------------------------------'''
         op_help_info = '''\
+----------------- ScoreboardHelper OP Command List ----------------
 "!sb cycle <true|false>": turn on/off scoreboard cycling.
 "!sb <add|rm> <visible|cycle> <name>": 
     add/remove a scoreboard from visible/cycle list.
 "!sb settime <visible|cycle> <time_in_sec>":
-    
-'''
+    set cycle interval / view duration time in sec.
+-------------------------------------------------------------------'''
+        help_msg = help_info + (op_help_info if player.is_op() else '')
+        self.utils.tell(player, help_msg)
 
 
     def list_visible_sb(self, player, text_list):
