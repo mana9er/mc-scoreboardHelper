@@ -106,7 +106,7 @@ class ScoreboardHelper(QtCore.QObject):
 -------------------------------------------------------------------'''
         op_help_info = f'''\
 ----------------- ScoreboardHelper OP Command List ----------------
-"{self._cmd_prefix} cycle <true|false>": Turn on/off scoreboard cycling.
+"{self._cmd_prefix} cycle <true|t|false|f>": Turn on/off scoreboard cycling.
 "{self._cmd_prefix} <add|rm> <visible|cycle> <name>": 
     Add/remove a scoreboard from visible/cycle list.
 "{self._cmd_prefix} settime <view|cycle> <time_in_sec>":

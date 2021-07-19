@@ -27,10 +27,10 @@ The following shows a list of functionalities of the ***scoreboardHelper*** pulg
 
 ### For Server OPerators
 
-1. Toggle scoreboard cycling.
+1. Toggle scoreboard cycling. (Case insensitive)
 
    ```
-   !sb cycle <true|false>
+   !sb cycle <true|t|false|f>
    ```
 
 2. Register / Remove "visible" scoreboards.
