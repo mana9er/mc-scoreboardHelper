@@ -9,12 +9,13 @@ class ScoreboardHelper(QtCore.QObject):
         super(ScoreboardHelper, self).__init__(core) 
         self.logger = logger
         self.core = core
+        self.config_file = config_file
 
         # load config
         self.configs = {}
-        if os.path.exists(config_file):
+        if os.path.exists(self.config_file):
             self.logger.info('Loading configs...')
-            with open(config_file, 'r', encoding='utf-8') as cf:
+            with open(self.config_file, 'r', encoding='utf-8') as cf:
                 self.configs = json.load(cf)
         else:
             self.logger.warning('config.json not found. Using default settings.')
@@ -25,7 +26,7 @@ class ScoreboardHelper(QtCore.QObject):
                 "sec_between_cycle": 15,
                 "sec_view_stay": 3
             }
-            json.dump(self.configs, open(config_file, 'w', encoding='utf-8'), indent=2)
+            json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
 
         # load mcBasicLib
         self.utils = core.get_plugin('mcBasicLib')
@@ -150,11 +151,57 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def add_sb(self, player, args: list):
-        pass
+        if len(args) != 2:
+            self.unknown_command(player)
+            return
+            
+        sb_name = args[1]
+        if args[0] == 'visible':
+            if sb_name not in self.configs.get('visible_scoreboards', []):
+                try:
+                    self.configs['visible_scoreboards'].append(sb_name)
+                except KeyError:
+                    self.configs['visible_scoreboards'] = [sb_name]
+                    self.logger.warning('Configuration \'visible_scoreboards\' not exist, creating a new list.')
+                finally:
+                    json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+            else:
+                self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' is already in the list.')
+        elif args[0] == 'cycle':
+            if sb_name not in self.configs.get('cycle_scoreboards', []):
+                try:
+                    self.configs['cycle_scoreboards'].append(sb_name)
+                except KeyError:
+                    self.configs['cycle_scoreboards'] = [sb_name]
+                    self.logger.warning('Configuration \'cycle_scoreboards\' not exist, creating a new list.')
+                finally:
+                    json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+            else:
+                self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' is already in the list.')
+        else:
+            self.unknown_command(player)
 
 
     def rm_sb(self, player, args: list):
-        pass
+        if len(args) != 2:
+            self.unknown_command(player)
+            return
+            
+        sb_name = args[1]
+        if args[0] == 'visible':
+            try:
+                self.configs['visible_scoreboards'].remove(sb_name)
+                json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+            except:     # ValueError (name not in list) or KeyError (list not exist)
+                self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' not in the list!')
+        elif args[0] == 'cycle':
+            try:
+                self.configs['cycle_scoreboards'].remove(sb_name)
+                json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+            except:
+                self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' not in the list!')
+        else:
+            self.unknown_command(player)
 
 
     def set_cycle(self, player, args: list):
