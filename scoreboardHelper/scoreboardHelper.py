@@ -205,7 +205,13 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def set_cycle(self, player, args: list):
-        pass
+        cmd = args[0].lower()
+        accept_cmd = ['true', 't', 'false', 'f']
+        if len(args) != 1 or cmd not in accept_cmd:
+            self.unknown_command(player)
+            return
+        
+        self.cycle_enabled = True if cmd == 'true' or cmd == 't' else False
 
 
     def set_time(self, player, args: list):
