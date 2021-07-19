@@ -109,7 +109,7 @@ class ScoreboardHelper(QtCore.QObject):
 "{self._cmd_prefix} cycle <true|false>": Turn on/off scoreboard cycling.
 "{self._cmd_prefix} <add|rm> <visible|cycle> <name>": 
     Add/remove a scoreboard from visible/cycle list.
-"{self._cmd_prefix} settime <visible|cycle> <time_in_sec>":
+"{self._cmd_prefix} settime <view|cycle> <time_in_sec>":
     Set cycle interval / view duration time in sec.
 -------------------------------------------------------------------'''
         help_msg = help_info + (op_help_info if player.is_op() else '')
@@ -217,4 +217,22 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def set_time(self, player, args: list):
-        pass
+        if len(args) != 2:
+            self.unknown_command(player)
+            return
+
+        try:
+            sec = int(args[1])
+        except:     # ValueError
+            self.utils.tell(player, 'Invalid input. Please enter an integer for the new interval.')
+        
+        if args[0] == 'view':
+            self.configs['sec_view_stay'] = sec
+        elif args[0] == 'cycle':
+            self.configs['sec_between_cycle'] = sec
+            self.cycle_timer.stop()
+            self.cycle_timer.start(sec * 1000)
+        else:
+            self.unknown_command(player)
+            return
+        json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
