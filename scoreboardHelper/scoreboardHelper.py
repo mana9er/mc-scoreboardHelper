@@ -27,14 +27,20 @@ class ScoreboardHelper(QtCore.QObject):
             }
             json.dump(self.configs, open(config_file, 'w', encoding='utf-8'), indent=2)
 
-        self.cycle_enabled = self.configs.get('cycle_enabled', True)
-
         # load mcBasicLib
         self.utils = core.get_plugin('mcBasicLib')
         if self.utils is None:
             self.logger.error('Failed to load plugin mcBasicLib. ScoreboardHelper will be disabled.')
             self.logger.error('Please make sure that mcBasicLib has been added to plugins.')
             return      # self.disabled = True
+
+        # initialize cycle timer
+        self.cycle_enabled = self.configs.get('cycle_enabled', True)
+        self.cycle_index = 0
+        self.cycle_timer = QtCore.QTimer()
+        self.cycle_timer.timeout.connect(self.cycle_timer_action)
+        cycle_interval = self.configs.get('sec_between_cycle', 15) * 1000
+        self.cycle_timer.start(cycle_interval)      # start cycle timer
 
         # connect signals and slots
         self.utils.sig_input.connect(self.on_player_input)
@@ -53,7 +59,7 @@ class ScoreboardHelper(QtCore.QObject):
 
     def unknown_command(self, player):
         self.logger.warning('Unknown command sent by player {}.'.format(player.name))
-        self.utils.tell(player, 'Unknown command. Type "!sb help" for help.')
+        self.utils.tell(player, f'Unknown command. Type "{self._cmd_prefix} help" for help.')
 
 
     @QtCore.pyqtSlot(tuple)
@@ -68,25 +74,41 @@ class ScoreboardHelper(QtCore.QObject):
             else:
                 self.unknown_command(player)
 
+
+    # Timer-triggered Functions
+    def cycle_timer_action(self):
+        if self.cycle_enabled:
+            cycle_sb_list = self.configs.get('cycle_scoreboards', [])
+            self.cycle_index %= len(cycle_sb_list)
+            self.core.write_server(f'/scoreboard objectives setdisplay sidebar {cycle_sb_list[self.cycle_index]}')
+            self.cycle_index += 1
+
+
+    def view_timer_end(self):
+        self.cycle_enabled = True
+        self.cycle_index -= 1
+        self.cycle_timer_action()
+        self.cycle_timer.start()
+
     
-    # Plugin Functions
+    # Plugin Command Functions
     def help(self, player, args: list):
         if len(args):
             self.unknown_command(player)
             return
 
-        help_info = '''\
+        help_info = f'''\
 ------------------ ScoreboardHelper Command List ------------------
-"!sb help": Show this help message.
-"!sb list": List all scoreboards.
-"!sb view <name>": View a certain scoreboard for a period of time.
+"{self._cmd_prefix} help": Show this help message.
+"{self._cmd_prefix} list": List all scoreboards.
+"{self._cmd_prefix} view <name>": View a certain scoreboard for a period of time.
 -------------------------------------------------------------------'''
-        op_help_info = '''\
+        op_help_info = f'''\
 ----------------- ScoreboardHelper OP Command List ----------------
-"!sb cycle <true|false>": Turn on/off scoreboard cycling.
-"!sb <add|rm> <visible|cycle> <name>": 
+"{self._cmd_prefix} cycle <true|false>": Turn on/off scoreboard cycling.
+"{self._cmd_prefix} <add|rm> <visible|cycle> <name>": 
     Add/remove a scoreboard from visible/cycle list.
-"!sb settime <visible|cycle> <time_in_sec>":
+"{self._cmd_prefix} settime <visible|cycle> <time_in_sec>":
     Set cycle interval / view duration time in sec.
 -------------------------------------------------------------------'''
         help_msg = help_info + (op_help_info if player.is_op() else '')
@@ -116,17 +138,15 @@ class ScoreboardHelper(QtCore.QObject):
 
         sb_name = args[0]
         if sb_name not in self.configs.get('visible_scoreboards', []):
-            self.utils.tell(player, f'Invalid scoreboard \'{sb_name}\'. Use \'!sb list\' to see available scoreboards.')
+            self.utils.tell(player, f'Invalid scoreboard \'{sb_name}\'. Use \'{self._cmd_prefix} list\' to see available scoreboards.')
             return
         
         self.cycle_enabled = False
+        self.cycle_timer.stop()
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
         interval = self.configs.get('sec_view_stay', 3) * 1000
         self.view_timer = QtCore.QTimer()
-        self.view_timer.singleShot(interval, self.view_timer_end)
-    
-    def view_timer_end(self):
-        self.cycle_enabled = True
+        self.view_timer.singleShot(interval, self.view_timer_end)   # do view_timer_end once after interval
 
 
     def add_sb(self, player, args: list):
