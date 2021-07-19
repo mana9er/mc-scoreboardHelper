@@ -8,6 +8,7 @@ class ScoreboardHelper(QtCore.QObject):
     def __init__(self, logger, core, config_file):
         super(ScoreboardHelper, self).__init__(core) 
         self.logger = logger
+        self.core = core
 
         # load config
         self.configs = {}
@@ -17,6 +18,14 @@ class ScoreboardHelper(QtCore.QObject):
                 self.configs = json.load(cf)
         else:
             self.logger.warning('config.json not found. Using default settings.')
+            self.configs = {
+                "visible_scoreboards": [],
+                "cycle_enabled": True,
+                "cycle_scoreboards": [],
+                "sec_between_cycle": 15,
+                "sec_view_stay": 3
+            }
+            json.dump(self.configs, open(config_file, 'w', encoding='utf-8'), indent=2)
 
         self.cycle_enabled = self.configs.get('cycle_enabled', True)
 
@@ -65,7 +74,7 @@ class ScoreboardHelper(QtCore.QObject):
         if len(args):
             self.unknown_command(player)
             return
-            
+
         help_info = '''\
 ------------------ ScoreboardHelper Command List ------------------
 "!sb help": Show this help message.
@@ -101,7 +110,23 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def view_sb(self, player, args: list):
-        pass
+        if len(args) != 1:
+            self.unknown_command(player)
+            return
+
+        sb_name = args[0]
+        if sb_name not in self.configs.get('visible_scoreboards', []):
+            self.utils.tell(player, f'Invalid scoreboard \'{sb_name}\'. Use \'!sb list\' to see available scoreboards.')
+            return
+        
+        self.cycle_enabled = False
+        self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
+        interval = self.configs.get('sec_view_stay', 3) * 1000
+        self.view_timer = QtCore.QTimer()
+        self.view_timer.singleShot(interval, self.view_timer_end)
+    
+    def view_timer_end(self):
+        self.cycle_enabled = True
 
 
     def add_sb(self, player, args: list):
