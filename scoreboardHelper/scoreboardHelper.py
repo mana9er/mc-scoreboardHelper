@@ -212,6 +212,8 @@ class ScoreboardHelper(QtCore.QObject):
             return
         
         self.cycle_enabled = True if cmd == 'true' or cmd == 't' else False
+        self.configs['cycle_enabled'] = self.cycle_enabled
+        json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
 
 
     def set_time(self, player, args: list):
