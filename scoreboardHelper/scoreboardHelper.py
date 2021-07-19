@@ -81,8 +81,15 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def list_visible_sb(self, player, text_list):
-        pass
-
+        if player.is_op():
+            self.utils.tell(player, 'Scoreboards cycling:', bold=True)
+            msg = '\t' + '\n\t'.join(self.configs.get('cycle_scoreboards', []))
+            self.utils.tell(player, msg)
+            self.utils.tell(player, 'Scoreboards visible to players:', bold=True)
+        else:
+            self.utils.tell(player, 'Scoreboards available:', bold=True)
+        msg = '\t' + '\n\t'.join(self.configs.get('visible_scoreboards', []))
+        self.utils.tell(player, msg)
 
     def view_sb(self, player, text_list):
         pass
