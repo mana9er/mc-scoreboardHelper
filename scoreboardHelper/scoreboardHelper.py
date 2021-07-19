@@ -55,13 +55,17 @@ class ScoreboardHelper(QtCore.QObject):
         
         if len(text_list) and text_list[0] == self._cmd_prefix:
             if len(text_list) > 1 and text_list[1] in self.cmd_list:
-                self.cmd_list[text_list[1]](player, text_list)
+                self.cmd_list[text_list[1]](player, text_list[2:])
             else:
                 self.unknown_command(player)
 
     
     # Plugin Functions
-    def help(self, player, text_list):
+    def help(self, player, args: list):
+        if len(args):
+            self.unknown_command(player)
+            return
+            
         help_info = '''\
 ------------------ ScoreboardHelper Command List ------------------
 "!sb help": Show this help message.
@@ -80,7 +84,11 @@ class ScoreboardHelper(QtCore.QObject):
         self.utils.tell(player, help_msg)
 
 
-    def list_visible_sb(self, player, text_list):
+    def list_visible_sb(self, player, args: list):
+        if len(args):
+            self.unknown_command(player)
+            return
+
         if player.is_op():
             self.utils.tell(player, 'Scoreboards cycling:', bold=True)
             msg = '\t' + '\n\t'.join(self.configs.get('cycle_scoreboards', []))
@@ -91,21 +99,22 @@ class ScoreboardHelper(QtCore.QObject):
         msg = '\t' + '\n\t'.join(self.configs.get('visible_scoreboards', []))
         self.utils.tell(player, msg)
 
-    def view_sb(self, player, text_list):
+
+    def view_sb(self, player, args: list):
         pass
 
 
-    def add_sb(self, player, text_list):
+    def add_sb(self, player, args: list):
         pass
 
 
-    def rm_sb(self, player, text_list):
+    def rm_sb(self, player, args: list):
         pass
 
 
-    def set_cycle(self, player, text_list):
+    def set_cycle(self, player, args: list):
         pass
 
 
-    def set_time(self, player, text_list):
+    def set_time(self, player, args: list):
         pass
