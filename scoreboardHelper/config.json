@@ -2,6 +2,6 @@
     "visible_scoreboards": [],
     "cycle_enabled": true,
     "cycle_scoreboards": [],
-    "sec_between_cycle": 0,
-    "sec_view_stay": 0
+    "sec_between_cycle": 15,
+    "sec_view_stay": 3
 }
