@@ -80,9 +80,12 @@ class ScoreboardHelper(QtCore.QObject):
     def cycle_timer_action(self):
         if self.cycle_enabled:
             cycle_sb_list = self.configs.get('cycle_scoreboards', [])
-            self.cycle_index %= len(cycle_sb_list)
-            self.core.write_server(f'/scoreboard objectives setdisplay sidebar {cycle_sb_list[self.cycle_index]}')
-            self.cycle_index += 1
+            if len(cycle_sb_list) <= 0:
+                self.logger.debug('No scoreboards to cycle. Skipping.')
+            else:
+                self.cycle_index %= len(cycle_sb_list)
+                self.core.write_server(f'/scoreboard objectives setdisplay sidebar {cycle_sb_list[self.cycle_index]}')
+                self.cycle_index += 1
 
 
     def view_timer_end(self):

@@ -1,4 +1,4 @@
-from . import ScoreboardHelper
+from .scoreboardHelper import ScoreboardHelper
 
 # list dependencies
 dependencies = ['mcBasicLib']
