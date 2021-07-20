@@ -125,7 +125,8 @@ class ScoreboardHelper(QtCore.QObject):
             return
 
         if player.is_op():
-            self.utils.tell(player, f'Scoreboards cycling (interval {self.configs["sec_between_cycle"]}s):')
+            cycle_status_msg = f'enabled, interval {self.configs["sec_between_cycle"]}s' if self.cycle_enabled else 'disabled'
+            self.utils.tell(player, f'Scoreboards cycling ({cycle_status_msg}):')
             msg = '    ' + '\n    '.join(self.configs.get('cycle_scoreboards', []))
             self.utils.tell(player, msg)
             self.utils.tell(player, f'Scoreboards visible to players (stay {self.configs["sec_view_stay"]}s):')
@@ -149,6 +150,7 @@ class ScoreboardHelper(QtCore.QObject):
         self.cycle_timer.stop()
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
         interval = self.configs.get('sec_view_stay', 3) * 1000
+        self.utils.tell(player, f'Viewing \'{sb_name}\' for {interval / 1000} seconds.')
         self.view_timer = QtCore.QTimer()
         self.view_timer.singleShot(interval, self.view_timer_end)   # do view_timer_end once after interval
 
@@ -167,6 +169,7 @@ class ScoreboardHelper(QtCore.QObject):
                     self.configs['visible_scoreboards'] = [sb_name]
                     self.logger.warning('Configuration \'visible_scoreboards\' not exist, creating a new list.')
                 finally:
+                    self.utils.tell(player, f'Added {sb_name} to visible scoreboards.')
                     json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
             else:
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' is already in the list.')
@@ -178,6 +181,7 @@ class ScoreboardHelper(QtCore.QObject):
                     self.configs['cycle_scoreboards'] = [sb_name]
                     self.logger.warning('Configuration \'cycle_scoreboards\' not exist, creating a new list.')
                 finally:
+                    self.utils.tell(player, f'Added {sb_name} to cycling scoreboards.')
                     json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
             else:
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' is already in the list.')
@@ -194,12 +198,14 @@ class ScoreboardHelper(QtCore.QObject):
         if args[0] == 'visible':
             try:
                 self.configs['visible_scoreboards'].remove(sb_name)
+                self.utils.tell(player, f'Removed {sb_name} from visible scoreboards.')
                 json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
             except:     # ValueError (name not in list) or KeyError (list not exist)
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' not in the list!')
         elif args[0] == 'cycle':
             try:
                 self.configs['cycle_scoreboards'].remove(sb_name)
+                self.utils.tell(player, f'Removed {sb_name} from cycling scoreboards.')
                 json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
             except:
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' not in the list!')
@@ -216,6 +222,7 @@ class ScoreboardHelper(QtCore.QObject):
         
         self.cycle_enabled = True if cmd == 'true' or cmd == 't' else False
         self.configs['cycle_enabled'] = self.cycle_enabled
+        self.utils.tell(player, f'Scoreboard cycling now set to {self.cycle_enabled}.')
         json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
 
 
@@ -233,10 +240,12 @@ class ScoreboardHelper(QtCore.QObject):
         
         if args[0] == 'view':
             self.configs['sec_view_stay'] = sec
+            self.utils.tell(player, f'Set view stay to {sec}s.')
         elif args[0] == 'cycle':
             self.configs['sec_between_cycle'] = sec
             self.cycle_timer.stop()
             self.cycle_timer.start(sec * 1000)
+            self.utils.tell(player, f'Set cycle interval to {sec}s.')
         else:
             self.unknown_command(player)
             return
