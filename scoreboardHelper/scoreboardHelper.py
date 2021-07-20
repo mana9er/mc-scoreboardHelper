@@ -102,19 +102,19 @@ class ScoreboardHelper(QtCore.QObject):
             return
 
         help_info = f'''\
------------------- ScoreboardHelper Command List ------------------
+----------- ScoreboardHelper Command List -----------
 "{self._cmd_prefix} help": Show this help message.
 "{self._cmd_prefix} list": List all scoreboards.
 "{self._cmd_prefix} view <name>": View a certain scoreboard for a period of time.
--------------------------------------------------------------------'''
-        op_help_info = f'''\
------------------ ScoreboardHelper OP Command List ----------------
+----------------------------------------------------'''
+        op_help_info = f'''
+---------- ScoreboardHelper OP Command List ---------
 "{self._cmd_prefix} cycle <true|t|false|f>": Turn on/off scoreboard cycling.
 "{self._cmd_prefix} <add|rm> <visible|cycle> <name>": 
     Add/remove a scoreboard from visible/cycle list.
 "{self._cmd_prefix} settime <view|cycle> <time_in_sec>":
     Set cycle interval / view duration time in sec.
--------------------------------------------------------------------'''
+----------------------------------------------------'''
         help_msg = help_info + (op_help_info if player.is_op() else '')
         self.utils.tell(player, help_msg)
 
@@ -125,13 +125,13 @@ class ScoreboardHelper(QtCore.QObject):
             return
 
         if player.is_op():
-            self.utils.tell(player, 'Scoreboards cycling:', bold=True)
-            msg = '\t' + '\n\t'.join(self.configs.get('cycle_scoreboards', []))
+            self.utils.tell(player, f'Scoreboards cycling (interval {self.configs["sec_between_cycle"]}s):')
+            msg = '    ' + '\n    '.join(self.configs.get('cycle_scoreboards', []))
             self.utils.tell(player, msg)
-            self.utils.tell(player, 'Scoreboards visible to players:', bold=True)
+            self.utils.tell(player, f'Scoreboards visible to players (stay {self.configs["sec_view_stay"]}s):')
         else:
-            self.utils.tell(player, 'Scoreboards available:', bold=True)
-        msg = '\t' + '\n\t'.join(self.configs.get('visible_scoreboards', []))
+            self.utils.tell(player, 'Scoreboards available:')
+        msg = '    ' + '\n    '.join(self.configs.get('visible_scoreboards', []))
         self.utils.tell(player, msg)
 
 
@@ -141,7 +141,7 @@ class ScoreboardHelper(QtCore.QObject):
             return
 
         sb_name = args[0]
-        if sb_name not in self.configs.get('visible_scoreboards', []):
+        if not player.is_op() and sb_name not in self.configs.get('visible_scoreboards', []):   # op can override the visible list
             self.utils.tell(player, f'Invalid scoreboard \'{sb_name}\'. Use \'{self._cmd_prefix} list\' to see available scoreboards.')
             return
         
@@ -226,8 +226,10 @@ class ScoreboardHelper(QtCore.QObject):
 
         try:
             sec = int(args[1])
+            if sec < 1: raise ValueError('Interval too short')
         except:     # ValueError
-            self.utils.tell(player, 'Invalid input. Please enter an integer for the new interval.')
+            self.utils.tell(player, 'Invalid input. Please enter an integer (>= 1) for the new interval.')
+            return
         
         if args[0] == 'view':
             self.configs['sec_view_stay'] = sec
