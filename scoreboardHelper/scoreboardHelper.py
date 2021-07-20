@@ -154,7 +154,7 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def add_sb(self, player, args: list):
-        if len(args) != 2:
+        if not player.is_op() or len(args) != 2:
             self.unknown_command(player)
             return
             
@@ -186,7 +186,7 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def rm_sb(self, player, args: list):
-        if len(args) != 2:
+        if not player.is_op() or len(args) != 2:
             self.unknown_command(player)
             return
             
@@ -210,7 +210,7 @@ class ScoreboardHelper(QtCore.QObject):
     def set_cycle(self, player, args: list):
         cmd = args[0].lower()
         accept_cmd = ['true', 't', 'false', 'f']
-        if len(args) != 1 or cmd not in accept_cmd:
+        if not player.is_op() or len(args) != 1 or cmd not in accept_cmd:
             self.unknown_command(player)
             return
         
@@ -220,7 +220,7 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def set_time(self, player, args: list):
-        if len(args) != 2:
+        if not player.is_op() or len(args) != 2:
             self.unknown_command(player)
             return
 
