@@ -102,13 +102,13 @@ class ScoreboardHelper(QtCore.QObject):
             return
 
         help_info = f'''\
------------ ScoreboardHelper Command List -----------
+------------ ScoreboardHelper Command List ------------
 "{self._cmd_prefix} help": Show this help message.
 "{self._cmd_prefix} list": List all scoreboards.
 "{self._cmd_prefix} view <name>": View a certain scoreboard for a period of time.
 ----------------------------------------------------'''
         op_help_info = f'''
----------- ScoreboardHelper OP Command List ---------
+----------- ScoreboardHelper OP Command List ----------
 "{self._cmd_prefix} cycle <true|t|false|f>": Turn on/off scoreboard cycling.
 "{self._cmd_prefix} <add|rm> <visible|cycle> <name>": 
     Add/remove a scoreboard from visible/cycle list.
