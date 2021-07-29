@@ -77,8 +77,8 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     # Timer-triggered Functions
-    def cycle_timer_action(self):
-        if self.cycle_enabled:
+    def cycle_timer_action(self, forced = False):
+        if self.cycle_enabled or forced:
             cycle_sb_list = self.configs.get('cycle_scoreboards', [])
             if len(cycle_sb_list) <= 0:
                 self.logger.debug('No scoreboards to cycle. Skipping.')
@@ -89,9 +89,8 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def view_timer_end(self):
-        self.cycle_enabled = True
         self.cycle_index -= 1
-        self.cycle_timer_action()
+        self.cycle_timer_action(forced=True)
         self.cycle_timer.start()
 
     
@@ -146,7 +145,6 @@ class ScoreboardHelper(QtCore.QObject):
             self.utils.tell(player, f'Invalid scoreboard \'{sb_name}\'. Use \'{self._cmd_prefix} list\' to see available scoreboards.')
             return
         
-        self.cycle_enabled = False
         self.cycle_timer.stop()
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
         interval = self.configs.get('sec_view_stay', 3) * 1000
