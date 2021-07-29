@@ -3,6 +3,8 @@ import os, json
 
 class ScoreboardHelper(QtCore.QObject):
     _cmd_prefix = '!sb'
+    _default_cycle_interval = 600
+    _default_view_stay = 5
 
     
     def __init__(self, logger, core, config_file):
@@ -23,8 +25,8 @@ class ScoreboardHelper(QtCore.QObject):
                 "visible_scoreboards": [],
                 "cycle_enabled": True,
                 "cycle_scoreboards": [],
-                "sec_between_cycle": 15,
-                "sec_view_stay": 3
+                "sec_between_cycle": self._default_cycle_interval,
+                "sec_view_stay": self._default_view_stay
             }
             json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
 
@@ -40,7 +42,7 @@ class ScoreboardHelper(QtCore.QObject):
         self.cycle_index = 0
         self.cycle_timer = QtCore.QTimer()
         self.cycle_timer.timeout.connect(self.cycle_timer_action)
-        cycle_interval = self.configs.get('sec_between_cycle', 15) * 1000
+        cycle_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval) * 1000
         self.cycle_timer.start(cycle_interval)      # start cycle timer
 
         # connect signals and slots
@@ -147,7 +149,7 @@ class ScoreboardHelper(QtCore.QObject):
         
         self.cycle_timer.stop()
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
-        interval = self.configs.get('sec_view_stay', 3) * 1000
+        interval = self.configs.get('sec_view_stay', self._default_view_stay) * 1000
         self.utils.tell(player, f'Viewing \'{sb_name}\' for {interval / 1000} seconds.')
         self.view_timer = QtCore.QTimer()
         self.view_timer.singleShot(interval, self.view_timer_end)   # do view_timer_end once after interval
