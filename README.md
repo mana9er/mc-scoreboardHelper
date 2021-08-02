@@ -36,13 +36,13 @@ The following shows a list of functionalities of the ***scoreboardHelper*** pulg
 2. Register / Remove "visible" scoreboards.
 
    ```
-   !sb <add|rm> visible <name>
+   !sb <add|remove|rm> visible <name>
    ```
 
 3. Register / Remove scoreboards for cycling.
 
    ```
-   !sb <add|rm> cycle <name>
+   !sb <add|remove|rm> cycle <name>
    ```
 
 4. Set scoreboard cycle interval.

@@ -54,6 +54,7 @@ class ScoreboardHelper(QtCore.QObject):
             'list': self.list_visible_sb,
             'view': self.view_sb,
             'add': self.add_sb,
+            'remove': self.rm_sb,
             'rm': self.rm_sb,
             'cycle': self.set_cycle,
             'settime': self.set_time,
@@ -111,7 +112,7 @@ class ScoreboardHelper(QtCore.QObject):
         op_help_info = f'''
 ----------- ScoreboardHelper OP Command List ----------
 "{self._cmd_prefix} cycle <true|t|false|f>": Turn on/off scoreboard cycling.
-"{self._cmd_prefix} <add|rm> <visible|cycle> <name>": 
+"{self._cmd_prefix} <add|remove|rm> <visible|cycle> <name>": 
     Add/remove a scoreboard from visible/cycle list.
 "{self._cmd_prefix} settime <view|cycle> <time_in_sec>":
     Set cycle interval / view duration time in sec.
