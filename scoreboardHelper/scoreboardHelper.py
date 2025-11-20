@@ -42,13 +42,22 @@ class ScoreboardHelper(QtCore.QObject):
         self.cycle_enabled = self.configs.get('cycle_enabled', True)
         self.cycle_index = 0
         self.cycle_timer = QtCore.QTimer(self)
-        self.cycle_timer.timeout.connect(self.cycle_timer_action)   # type: ignore[attr-defined]
         self.std_cyc_interval_ms = self.configs.get('sec_between_cycle', self._default_cycle_interval) * 1000    # msec
-        self.cycle_timer.start(self.std_cyc_interval_ms)      # start cycle timer
         self._cycle_remaining_ms = 0   # msec
+        self.cycle_timer.setInterval(self.std_cyc_interval_ms)
+        self.cycle_timer.timeout.connect(self.cycle_timer_action)   # type: ignore[attr-defined]
+        if self.cycle_enabled:
+            self.cycle_timer.start()      # start cycle timer
+
+        # initialize view timer
+        self.view_timer = QtCore.QTimer(self)
+        self.view_timer.setSingleShot(True)
+        self.view_timer.timeout.connect(self.view_timer_end)  # type: ignore[attr-defined]
 
         # connect signals and slots
         self.utils.sig_input.connect(self.on_player_input)
+        self.utils.sig_login.connect(self.on_player_login)
+        self.utils.sig_logout.connect(self.on_player_logout)
 
         # available commands
         self.cmd_list = {
@@ -69,6 +78,7 @@ class ScoreboardHelper(QtCore.QObject):
         self.utils.tell(player, f'Unknown command. Type "{self._cmd_prefix} help" for help.')
 
 
+    ## Slots for mcBasicLib signals
     @QtCore.pyqtSlot(tuple)
     def on_player_input(self, pair):
         self.logger.debug(f'{self.__class__.__name__}.on_player_input() called')
@@ -80,6 +90,42 @@ class ScoreboardHelper(QtCore.QObject):
                 self.cmd_list[text_list[1]](player, text_list[2:])
             else:
                 self.unknown_command(player)
+
+    @QtCore.pyqtSlot(object)
+    def on_player_login(self, player):
+        self.logger.debug(f'{self.__class__.__name__}.on_player_login() called for player {player.name}')
+        # when a player logs in, check if cycle timer is paused,
+        # if paused, resume the cycle timer.
+        if len(self.utils.get_online_player_list()) == 1:   # first player online
+            self.logger.debug('First player logged in. Resuming cycle timer if paused.')
+            if self.cycle_enabled and not self.cycle_timer.isActive():
+                if self._cycle_remaining_ms > 0:
+                    self.cycle_timer.start(self._cycle_remaining_ms)
+                    self.logger.debug(f'Cycle timer resumed with {self._cycle_remaining_ms} ms remaining.')
+                    self._cycle_remaining_ms = 0
+                else:
+                    self.cycle_timer.start()
+                    self.logger.debug('Cycle timer started normally.')
+            else:
+                self.logger.debug('Cycle disabled or is already running; no action taken.')
+
+    @QtCore.pyqtSlot(object)
+    def on_player_logout(self, player):
+        self.logger.debug(f'{self.__class__.__name__}.on_player_logout() called for player {player.name}')
+        # when a player logs out, check online list, 
+        # if no players online, end the view timer and pause the cycle timer.
+        if len(self.utils.get_online_player_list()) == 0:
+            self.logger.debug('No players online. Ending view timer and pausing cycle timer.')
+            if self.view_timer.isActive():
+                self.view_timer.stop()
+                self.view_timer_end()
+                self.logger.debug('View timer ended.')
+            if self.cycle_enabled:
+                self._cycle_remaining_ms = self.cycle_timer.remainingTime()
+                self.cycle_timer.stop()
+                self.logger.debug(f'Cycle timer paused with {self._cycle_remaining_ms} ms remaining.')
+            else:
+                self.logger.debug('Cycle disabled; no action taken.')
 
 
     def update_config_json(self):
@@ -110,7 +156,7 @@ class ScoreboardHelper(QtCore.QObject):
         if self.cycle_enabled:
             if self._cycle_remaining_ms > 0:
                 self.cycle_timer.start(self._cycle_remaining_ms)
-                self._cycle_remaining_ms = 0 # Reset instead of delete to avoid attribute error
+                self._cycle_remaining_ms = 0
             else:
                 self.cycle_timer.start()
 
@@ -176,9 +222,6 @@ class ScoreboardHelper(QtCore.QObject):
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
         view_interval = self.configs.get('sec_view_stay', self._default_view_stay)  # sec
         self.utils.tell(player, f'Viewing \'{sb_name}\' for {view_interval} seconds.')
-        self.view_timer = QtCore.QTimer(self)
-        self.view_timer.timeout.connect(self.view_timer_end)  # type: ignore[attr-defined]
-        self.view_timer.setSingleShot(True)
         self.view_timer.start(view_interval * 1000)
 
 
@@ -187,7 +230,7 @@ class ScoreboardHelper(QtCore.QObject):
             self.unknown_command(player)
             return
         
-        if hasattr(self, 'view_timer') and self.view_timer.isActive():  # player is viewing a selected scoreboard
+        if self.view_timer.isActive():  # player is viewing a selected scoreboard
             self.logger.debug('skip_sb(): view timer is active.')
             self.view_timer.stop()
             self.view_timer_end()
