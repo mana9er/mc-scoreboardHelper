@@ -19,6 +19,7 @@ class ScoreboardHelper(QtCore.QObject):
             self.logger.info('Loading configs...')
             with open(self.config_file, 'r', encoding='utf-8') as cf:
                 self.configs = json.load(cf)
+            self.logger.info('Configs loaded.')
         else:
             self.logger.warning('config.json not found. Using default settings.')
             self.configs = {
@@ -41,7 +42,7 @@ class ScoreboardHelper(QtCore.QObject):
         self.cycle_enabled = self.configs.get('cycle_enabled', True)
         self.cycle_index = 0
         self.cycle_timer = QtCore.QTimer()
-        self.cycle_timer.timeout.connect(self.cycle_timer_action)
+        self.cycle_timer.timeout.connect(self.cycle_timer_action)   # type: ignore[attr-defined]
         cycle_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval)    # second
         self.cycle_timer.start(cycle_interval * 1000)      # start cycle timer
 
@@ -94,7 +95,7 @@ class ScoreboardHelper(QtCore.QObject):
 
 
     def view_timer_end(self):
-        self.cycle_index -= 1
+        self.cycle_index -= 1   # return to previous showing scoreboard
         self.cycle_timer_action(forced=True)
         self.cycle_timer.start()
 
@@ -110,14 +111,14 @@ class ScoreboardHelper(QtCore.QObject):
 "{self._cmd_prefix} help": Show this help message.
 "{self._cmd_prefix} list": List all scoreboards.
 "{self._cmd_prefix} view <name>": View a certain scoreboard for a period of time.
-"{self._cmd_prefix} skip": Skip the current displayed scoreboard.
+"{self._cmd_prefix} skip": Skip the displaying scoreboard.
 ----------------------------------------------------'''
         op_help_info = f'''
 ----------- ScoreboardHelper OP Command List ----------
-"{self._cmd_prefix} cycle <true|t|false|f>": Turn on/off scoreboard cycling.
-"{self._cmd_prefix} <add|remove|rm> <visible|cycle> <name>": 
-    Add/remove a scoreboard from visible/cycle list.
-"{self._cmd_prefix} settime <view|cycle> <second>":
+"{self._cmd_prefix} cycle <true | t | false | f>": Turn on / off scoreboard cycling.
+"{self._cmd_prefix} <add | remove | rm> <visible | cycle> <name>": 
+    Add / remove a scoreboard from visible / cycle list.
+"{self._cmd_prefix} settime <view | cycle> <second>":
     Set cycle interval / view duration time in second.
 ----------------------------------------------------'''
         help_msg = help_info + (op_help_info if player.is_op() else '')
@@ -156,7 +157,7 @@ class ScoreboardHelper(QtCore.QObject):
         interval = self.configs.get('sec_view_stay', self._default_view_stay)
         self.utils.tell(player, f'Viewing \'{sb_name}\' for {interval} seconds.')
         self.view_timer = QtCore.QTimer()
-        self.view_timer.singleShot(interval * 1000, self.view_timer_end)   # do view_timer_end once after interval
+        self.view_timer.singleShot(interval * 1000, self.view_timer_end)   # do view_timer_end() once after interval
 
 
     def skip_sb(self, player, args: list):
@@ -164,11 +165,15 @@ class ScoreboardHelper(QtCore.QObject):
             self.unknown_command(player)
             return
         
-        if self.view_timer.isActive():
+        if hasattr(self, 'view_timer') and self.view_timer.isActive():  # player is viewing a selected scoreboard
+            self.logger.debug('skip_sb(): view timer is ACTIVE.')
             self.view_timer.stop()
             self.view_timer_end()
         else:   # TODO: permission control?
+            self.logger.debug('skip_sb(): view timer is inactive.')
             self.cycle_timer_action(forced=True)
+        
+        self.utils.tell(player, f'Skipped displaying scoreborad.')
 
 
 
