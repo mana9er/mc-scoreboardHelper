@@ -43,9 +43,9 @@ class ScoreboardHelper(QtCore.QObject):
         self.cycle_index = 0
         self.cycle_timer = QtCore.QTimer(self)
         self.cycle_timer.timeout.connect(self.cycle_timer_action)   # type: ignore[attr-defined]
-        self.std_cyc_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval) * 1000    # msec
-        self.cycle_timer.start(self.std_cyc_interval)      # start cycle timer
-        self._cycle_remaining_time = 0   # ms
+        self.std_cyc_interval_ms = self.configs.get('sec_between_cycle', self._default_cycle_interval) * 1000    # msec
+        self.cycle_timer.start(self.std_cyc_interval_ms)      # start cycle timer
+        self._cycle_remaining_ms = 0   # msec
 
         # connect signals and slots
         self.utils.sig_input.connect(self.on_player_input)
@@ -90,8 +90,8 @@ class ScoreboardHelper(QtCore.QObject):
     def cycle_timer_action(self, forced = False):
         if self.cycle_enabled or forced:
             # Restore standard interval if it was changed (e.g. by resuming from view)
-            if self.cycle_timer.interval() != self.std_cyc_interval:
-                self.cycle_timer.setInterval(self.std_cyc_interval)
+            if self.cycle_timer.interval() != self.std_cyc_interval_ms:
+                self.cycle_timer.setInterval(self.std_cyc_interval_ms)
 
             cycle_sb_list = self.configs.get('cycle_scoreboards', [])
             if len(cycle_sb_list) <= 0:
@@ -108,9 +108,9 @@ class ScoreboardHelper(QtCore.QObject):
         
         # Resume cycle timer with remaining time if available and cycle enabled
         if self.cycle_enabled:
-            if self._cycle_remaining_time > 0:
-                self.cycle_timer.start(self._cycle_remaining_time)
-                self._cycle_remaining_time = 0 # Reset instead of delete to avoid attribute error
+            if self._cycle_remaining_ms > 0:
+                self.cycle_timer.start(self._cycle_remaining_ms)
+                self._cycle_remaining_ms = 0 # Reset instead of delete to avoid attribute error
             else:
                 self.cycle_timer.start()
 
@@ -169,15 +169,17 @@ class ScoreboardHelper(QtCore.QObject):
         
         # Save remaining time if cycle timer is active
         if self.cycle_enabled:
-            self._cycle_remaining_time = self.cycle_timer.remainingTime()
-            self.logger.debug(f'view_sb(): cycle enabled. Remaining time saved: {self._cycle_remaining_time} ms.')
+            self._cycle_remaining_ms = self.cycle_timer.remainingTime()
+            self.logger.debug(f'view_sb(): cycle enabled. Remaining time saved: {self._cycle_remaining_ms} ms.')
             self.cycle_timer.stop()
 
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
-        view_interval = self.configs.get('sec_view_stay', self._default_view_stay)
+        view_interval = self.configs.get('sec_view_stay', self._default_view_stay)  # sec
         self.utils.tell(player, f'Viewing \'{sb_name}\' for {view_interval} seconds.')
         self.view_timer = QtCore.QTimer(self)
-        self.view_timer.singleShot(view_interval * 1000, self.view_timer_end)   # do view_timer_end() once after interval
+        self.view_timer.timeout.connect(self.view_timer_end)  # type: ignore[attr-defined]
+        self.view_timer.setSingleShot(True)
+        self.view_timer.start(view_interval * 1000)
 
 
     def skip_sb(self, player, args: list):
@@ -186,14 +188,14 @@ class ScoreboardHelper(QtCore.QObject):
             return
         
         if hasattr(self, 'view_timer') and self.view_timer.isActive():  # player is viewing a selected scoreboard
-            self.logger.debug('skip_sb(): view timer is ACTIVE.')
+            self.logger.debug('skip_sb(): view timer is active.')
             self.view_timer.stop()
             self.view_timer_end()
         else:   # TODO: permission control?
             self.logger.debug('skip_sb(): view timer is inactive.')
             self.cycle_timer_action(forced=True)
             if self.cycle_enabled:
-                self.cycle_timer.start(self.std_cyc_interval)
+                self.cycle_timer.start(self.std_cyc_interval_ms)
         
         self.utils.tell(player, f'Skipped displaying scoreborad.')
 
@@ -292,8 +294,8 @@ class ScoreboardHelper(QtCore.QObject):
             self.utils.tell(player, f'Set view stay to {sec}s.')
         elif args[0] == 'cycle':
             self.configs['sec_between_cycle'] = sec
-            self.cycle_timer.stop()
-            self.cycle_timer.start(sec * 1000)
+            self.std_cyc_interval_ms = sec * 1000
+            self.cycle_timer.start(self.std_cyc_interval_ms)
             self.utils.tell(player, f'Set cycle interval to {sec}s.')
         else:
             self.unknown_command(player)
