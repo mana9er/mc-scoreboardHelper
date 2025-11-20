@@ -43,8 +43,8 @@ class ScoreboardHelper(QtCore.QObject):
         self.cycle_index = 0
         self.cycle_timer = QtCore.QTimer(self)
         self.cycle_timer.timeout.connect(self.cycle_timer_action)   # type: ignore[attr-defined]
-        self.std_cyc_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval)    # second
-        self.cycle_timer.start(self.std_cyc_interval * 1000)      # start cycle timer
+        self.std_cyc_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval) * 1000    # msec
+        self.cycle_timer.start(self.std_cyc_interval)      # start cycle timer
         self._cycle_remaining_time = 0   # ms
 
         # connect signals and slots
@@ -174,10 +174,10 @@ class ScoreboardHelper(QtCore.QObject):
             self.cycle_timer.stop()
 
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
-        interval = self.configs.get('sec_view_stay', self._default_view_stay)
-        self.utils.tell(player, f'Viewing \'{sb_name}\' for {interval} seconds.')
+        view_interval = self.configs.get('sec_view_stay', self._default_view_stay)
+        self.utils.tell(player, f'Viewing \'{sb_name}\' for {view_interval} seconds.')
         self.view_timer = QtCore.QTimer(self)
-        self.view_timer.singleShot(interval * 1000, self.view_timer_end)   # do view_timer_end() once after interval
+        self.view_timer.singleShot(view_interval * 1000, self.view_timer_end)   # do view_timer_end() once after interval
 
 
     def skip_sb(self, player, args: list):
@@ -192,6 +192,8 @@ class ScoreboardHelper(QtCore.QObject):
         else:   # TODO: permission control?
             self.logger.debug('skip_sb(): view timer is inactive.')
             self.cycle_timer_action(forced=True)
+            if self.cycle_enabled:
+                self.cycle_timer.start(self.std_cyc_interval)
         
         self.utils.tell(player, f'Skipped displaying scoreborad.')
 
