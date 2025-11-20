@@ -29,7 +29,7 @@ class ScoreboardHelper(QtCore.QObject):
                 "sec_between_cycle": self._default_cycle_interval,
                 "sec_view_stay": self._default_view_stay
             }
-            json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+            self.update_config_json()
 
         # load mcBasicLib
         self.utils = core.get_plugin('mcBasicLib')
@@ -41,10 +41,11 @@ class ScoreboardHelper(QtCore.QObject):
         # initialize cycle timer
         self.cycle_enabled = self.configs.get('cycle_enabled', True)
         self.cycle_index = 0
-        self.cycle_timer = QtCore.QTimer()
+        self.cycle_timer = QtCore.QTimer(self)
         self.cycle_timer.timeout.connect(self.cycle_timer_action)   # type: ignore[attr-defined]
-        cycle_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval)    # second
-        self.cycle_timer.start(cycle_interval * 1000)      # start cycle timer
+        self.std_cyc_interval = self.configs.get('sec_between_cycle', self._default_cycle_interval)    # second
+        self.cycle_timer.start(self.std_cyc_interval * 1000)      # start cycle timer
+        self._cycle_remaining_time = 0   # ms
 
         # connect signals and slots
         self.utils.sig_input.connect(self.on_player_input)
@@ -81,9 +82,17 @@ class ScoreboardHelper(QtCore.QObject):
                 self.unknown_command(player)
 
 
+    def update_config_json(self):
+        json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+
+
     ## Timer-triggered Functions
     def cycle_timer_action(self, forced = False):
         if self.cycle_enabled or forced:
+            # Restore standard interval if it was changed (e.g. by resuming from view)
+            if self.cycle_timer.interval() != self.std_cyc_interval:
+                self.cycle_timer.setInterval(self.std_cyc_interval)
+
             cycle_sb_list = self.configs.get('cycle_scoreboards', [])
             if len(cycle_sb_list) <= 0:
                 self.logger.debug('No scoreboards to cycle. Skipping.')
@@ -93,11 +102,17 @@ class ScoreboardHelper(QtCore.QObject):
                 self.core.write_server(f'/scoreboard objectives setdisplay sidebar {cycle_sb_list[self.cycle_index]}')
                 self.cycle_index += 1
 
-
     def view_timer_end(self):
         self.cycle_index -= 1   # return to previous showing scoreboard
         self.cycle_timer_action(forced=True)
-        self.cycle_timer.start()
+        
+        # Resume cycle timer with remaining time if available and cycle enabled
+        if self.cycle_enabled:
+            if self._cycle_remaining_time > 0:
+                self.cycle_timer.start(self._cycle_remaining_time)
+                self._cycle_remaining_time = 0 # Reset instead of delete to avoid attribute error
+            else:
+                self.cycle_timer.start()
 
     
     ## Plugin Command Functions
@@ -152,11 +167,16 @@ class ScoreboardHelper(QtCore.QObject):
             self.utils.tell(player, f'Invalid scoreboard \'{sb_name}\'. Use \'{self._cmd_prefix} list\' to see available scoreboards.')
             return
         
-        self.cycle_timer.stop()
+        # Save remaining time if cycle timer is active
+        if self.cycle_enabled:
+            self._cycle_remaining_time = self.cycle_timer.remainingTime()
+            self.logger.debug(f'view_sb(): cycle enabled. Remaining time saved: {self._cycle_remaining_time} ms.')
+            self.cycle_timer.stop()
+
         self.core.write_server(f'/scoreboard objectives setdisplay sidebar {sb_name}')
         interval = self.configs.get('sec_view_stay', self._default_view_stay)
         self.utils.tell(player, f'Viewing \'{sb_name}\' for {interval} seconds.')
-        self.view_timer = QtCore.QTimer()
+        self.view_timer = QtCore.QTimer(self)
         self.view_timer.singleShot(interval * 1000, self.view_timer_end)   # do view_timer_end() once after interval
 
 
@@ -192,7 +212,7 @@ class ScoreboardHelper(QtCore.QObject):
                     self.logger.warning('Configuration \'visible_scoreboards\' not exist, creating a new list.')
                 finally:
                     self.utils.tell(player, f'Added {sb_name} to visible scoreboards.')
-                    json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+                    self.update_config_json()
             else:
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' is already in the list.')
         elif args[0] == 'cycle':
@@ -204,7 +224,7 @@ class ScoreboardHelper(QtCore.QObject):
                     self.logger.warning('Configuration \'cycle_scoreboards\' not exist, creating a new list.')
                 finally:
                     self.utils.tell(player, f'Added {sb_name} to cycling scoreboards.')
-                    json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+                    self.update_config_json()
             else:
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' is already in the list.')
         else:
@@ -221,14 +241,14 @@ class ScoreboardHelper(QtCore.QObject):
             try:
                 self.configs['visible_scoreboards'].remove(sb_name)
                 self.utils.tell(player, f'Removed {sb_name} from visible scoreboards.')
-                json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+                self.update_config_json()
             except:     # ValueError (name not in list) or KeyError (list not exist)
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' not in the list!')
         elif args[0] == 'cycle':
             try:
                 self.configs['cycle_scoreboards'].remove(sb_name)
                 self.utils.tell(player, f'Removed {sb_name} from cycling scoreboards.')
-                json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+                self.update_config_json()
             except:
                 self.utils.tell(player, f'Failed. Scoreboard \'{sb_name}\' not in the list!')
         else:
@@ -241,12 +261,17 @@ class ScoreboardHelper(QtCore.QObject):
         if not player.is_op() or len(args) != 1 or cmd not in accept_cmd:
             self.unknown_command(player)
             return
-        
-        self.cycle_enabled = True if cmd == 'true' or cmd == 't' else False
+
+        if cmd == 'true' or cmd == 't':
+            self.cycle_enabled = True
+            self.cycle_timer.start() 
+        else:
+            self.cycle_enabled = False
+            self.cycle_timer.stop()   
         self.configs['cycle_enabled'] = self.cycle_enabled
         self.utils.tell(player, f'Scoreboard cycling now set to {self.cycle_enabled}.')
-        json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
-
+        self.update_config_json()
+        
 
     def set_time(self, player, args: list):
         if not player.is_op() or len(args) != 2:
@@ -271,4 +296,4 @@ class ScoreboardHelper(QtCore.QObject):
         else:
             self.unknown_command(player)
             return
-        json.dump(self.configs, open(self.config_file, 'w', encoding='utf-8'), indent=4)
+        self.update_config_json()
