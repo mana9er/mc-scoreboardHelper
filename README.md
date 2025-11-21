@@ -25,6 +25,12 @@ The following shows a list of functionalities of the ***scoreboardHelper*** pulg
    !sb help
    ```
 
+4. Skip current displaying scoreboard.
+
+   ```
+   !sb skip
+   ```
+
 ### For Server OPerators
 
 1. Toggle scoreboard cycling. (Case insensitive)
